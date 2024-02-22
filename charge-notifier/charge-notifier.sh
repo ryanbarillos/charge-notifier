@@ -8,7 +8,10 @@
 # https://stackoverflow.com/a/18668580
 # https://stackoverflow.com/a/5431932
 # https://stackoverflow.com/a/31339970
+# https://stackoverflow.com/a/18829999
+# https://stackoverflow.com/a/10552775
 #
+
 
 #
 # Settings
@@ -16,11 +19,13 @@ INTERVAL=30 # Interval of the loop to repeat itself (in seconds)
 SHOW=true   # Switch to show or not show pop-up
 LOOP=true   # Switch to start loop
 
+
 #
 # Battery Levels
-BAT_MAX=70
-BAT_MIN=100
+BAT_MAX=80
+BAT_MIN=40
 BAT_HIB=35
+
 
 #
 # Icons
@@ -47,6 +52,7 @@ SND_WARN=${SND_LOC}dialog-warning.oga
 
 set -eu
 
+
 #
 # Charge Status
 isCharging() {
@@ -56,6 +62,7 @@ isCharging() {
 getPercent() {
     echo $(acpi|grep -Po "[0-9]+(?=%)")
 }
+
 
 #
 # Battery Checks
@@ -104,8 +111,10 @@ hibernate() {
     systemctl hibernate
 }
 
+
 # Test code
 # if $(isBatteryLow); then echo "Battery is low"; else echo "b"; fi
+
 
 #
 # Service Loop
