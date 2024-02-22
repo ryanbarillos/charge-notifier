@@ -8,4 +8,4 @@ ExecStart=/home/%u/.local/bin/charge-notify.sh
 Restart=on-failure
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
