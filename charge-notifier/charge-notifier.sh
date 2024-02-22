@@ -112,10 +112,6 @@ hibernate() {
 }
 
 
-# Test code
-# if $(isBatteryLow); then echo "Battery is low"; else echo "b"; fi
-
-
 #
 # Service Loop
 while $LOOP ; do
@@ -141,7 +137,7 @@ while $LOOP ; do
             notify_sound
         fi
     fi
-
+    #
     # Repeat every $INTERVAL seconds
     sleep ${INTERVAL} 
 done
