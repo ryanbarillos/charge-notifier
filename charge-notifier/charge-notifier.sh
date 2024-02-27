@@ -22,7 +22,7 @@ LOOP=true   # Switch to start loop
 
 #
 # Battery Levels
-BAT_MAX=80
+BAT_MAX=30
 BAT_MIN=40
 BAT_HIB=35
 
@@ -33,10 +33,10 @@ BAT_HIB=35
 # NOTE:
 # It takes icons from GNOME's Adwaita icon pack.
 # Support for other icons is not yet ready
-ICO_LOC=/usr/share/icons/Adwaita/symbolic/status/
-ICO_FULL=${ICO_LOC}battery-level-90-charging-symbolic.svg
-ICO_LOW=${ICO_LOC}battery-caution-symbolic.svg
-ICO_CRIT=${ICO_LOC}battery-level-0-symbolic.svg
+ICON_LOC=/usr/share/icons/Adwaita/symbolic/status/
+ICON_FULL=${ICON_LOC}battery-level-90-charging-symbolic.svg
+ICON_LOW=${ICON_LOC}battery-caution-symbolic.svg
+ICON_CRIT=${ICON_LOC}battery-level-0-symbolic.svg
 
 
 #
@@ -54,44 +54,32 @@ set -eu
 
 
 #
-# Charge Status
-isCharging() {
-    STATUS=$( cat /sys/bus/acpi/drivers/battery/*/power_supply/BAT?/status )
-    if [ $STATUS = "Charging" ]; then true; else false; fi
-}
+# Charge Percentage
+#
+# NOTE:
+# BAT0 is assumed to be the laptop's primary battery
+# BAT? --- where ? is any number > 0 --- are assumed to be battery of other devices
+# I.e., headphones, battery-powered stylus, etc.
 getPercent() {
-    echo $(acpi|grep -Po "[0-9]+(?=%)")
+    cat /sys/class/power_supply/BAT0/capacity
 }
-
 
 #
 # Battery Checks
 isBatteryHigh() {
     #
     # Battery >= $BAT_MAX
-    if $(isCharging); then
-        if [ $(getPercent) -ge ${BAT_MAX} ]; then true; else false; fi
-    else
-        false
-    fi
+    if [ $(getPercent) -ge $BAT_MAX ]; then true; else false; fi
 }
 isBatteryLow() {
     #
     # $BAT_HIB < Battery <= $BAT_MIN
-    if ! (( $(isCharging) )); then
-        if [ $(getPercent) -gt ${BAT_HIB} ] && [ $(getPercent) -le ${BAT_MIN} ]; then true; else false; fi
-    else
-        false
-    fi
+    if [ $(getPercent) -gt $BAT_HIB ] && [ $(getPercent) -le $BAT_MIN ]; then true; else false; fi
 }
 isBatteryVeryLow() {
     #
     # Battery <= $BAT_HIB
-    if ! (( $(isCharging) )); then
-        if [ $(getPercent) -le ${BAT_HIB} ]; then true; else false; fi
-    else
-        false
-    fi    
+    if [ $(getPercent) -le $BAT_HIB ]; then true; else false; fi 
 }
 
 
@@ -100,7 +88,7 @@ isBatteryVeryLow() {
 notify_dialog() {
     if [ $SHOW ]; then zenity --info --width=350 --title="${1}" --text="${2}"; fi    
 }
-notify_bubble() {
+notify_send() {
     TIME=$((INTERVAL*1000))
     if [ $SHOW ]; then notify-send -i $1 "$2" "$3"; fi
 }
@@ -115,27 +103,28 @@ hibernate() {
 #
 # Service Loop
 while $LOOP ; do
-    #
-    # Battery >= $BAT_MAX
-    if $(isBatteryHigh); then
-        notify_dialog "Your battery is full ($(getPercent)%)" "You might want to unplug your PC." & notify_bubble $ICO_FULL "Your battery is full" "You should unplug your device."
-        notify_sound
-    fi
-    #
-    # $BAT_HIB < Battery <= $BAT_MIN
-    if $(isBatteryLow); then
-        notify_dialog "Your battery is running low ($(getPercent)%)" "You might want to plug in your PC." & notify_bubble $ICO_LOW "Your battery is low" "You should plug in your device."
-        notify_sound
-    fi
-    #
-    # Battery < $BAT_HIB
-    if $(isBatteryVeryLow); then
-        if [ $(getPercent) -lt ${BAT_HIB} ]; then
-            hibernate
-        else
-            notify_dialog "Your battery is critically low ($(getPercent)%)" "Your PC will hibernate soon." & notify_bubble $ICO_CRIT "Your battery is critically low" "You device will hibernate."
+    # Is battery charging?
+    if [ $(grep Charging /sys/bus/acpi/drivers/battery/*/power_supply/BAT?/status) = "Charging" ]; then
+        # Battery >= $BAT_MAX
+        if $(isBatteryHigh); then
+            notify_dialog "Your battery is full ($(getPercent)%)" "You might want to unplug your PC." & notify_send $ICON_FULL "Your battery is full" "You should unplug your device."
             notify_sound
-        fi
+        fi    
+    # Is battery discharging?
+    else
+        # $BAT_HIB < Battery <= $BAT_MIN
+        if $(isBatteryLow); then
+            notify_dialog "Your battery is running low ($(getPercent)%)" "You might want to plug in your PC." & notify_send $ICON_LOW "Your battery is low" "You should plug in your device."
+            notify_sound
+        # Battery < $BAT_HIB    
+        elif $(isBatteryVeryLow); then
+            if [ $(getPercent) -lt $BAT_HIB ]; then
+                hibernate
+            else
+                notify_dialog "Your battery is critically low ($(getPercent)%)" "Your PC will hibernate soon." & notify_send $ICON_CRIT "Your battery is critically low" "You device will hibernate."
+                notify_sound
+            fi
+        fi        
     fi
     #
     # Repeat every $INTERVAL seconds
